@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status and List Example</title>
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #f0f0f0; /* Light grey background */
+            color: #333; /* Dark gray text */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Container for Left and Right Section */
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 80%;
+            max-width: 1200px;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+            gap: 30px; /* Adding gap between left and right columns */
+        }
+
+        /* Left Column (Buttons) */
+        .left-column {
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Right Column (Status and List) */
+        .right-column {
+            flex: 2;
+            text-align: left;
+        }
+
+        /* Status Display */
+        #status {
+            font-size: 1.6rem; /* Smaller font size for status */
+            font-weight: 400;
+            color: #333;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 1.5rem; /* Gap after the status box */
+            transition: background-color 0.3s ease;
+        }
+
+        /* List Box */
+        #listBox {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+            margin-top: 1.5rem; /* Gap before the list box */
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .item {
+            font-size: 1rem; /* Smaller font size for items */
+            color: #333;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.3s ease;
+        }
+
+        .item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        /* Buttons */
+        button {
+            background-color: #333; /* Dark grey button */
+            color: #fff;
+            padding: 12px 30px;
+            font-size: 1rem; /* Smaller font size */
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 8px 0; /* Adding margin between buttons */
+            transition: background-color 0.3s, transform 0.2s ease-in-out;
+            width: 200px;
+        }
+
+        button:hover {
+            background-color: #555; /* Slightly lighter grey on hover */
+            transform: translateY(-3px);
+        }
+
+        button:active {
+            background-color: #222; /* Darker gray on active */
+            transform: translateY(0);
+        }
+
+        /* Title */
+        h1 {
+            font-size: 2.2rem; /* Smaller font size */
+            color: #222; /* Darker gray for the title */
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Left Column: Buttons -->
+        <div class="left-column">
+            <h1>Status and List Example</h1>
+            <button onclick="showStatus()">Show Status</button>
+            <button onclick="changeStatus()">Change Status</button>
+        </div>
+
+        <!-- Right Column: Status and List -->
+        <div class="right-column">
+            <div id="status">Status: Not Loaded</div>
+            <div id="listBox"></div>
+        </div>
+    </div>
+
+    <script>
+        // Function to fetch and display status from backend
+        function showStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status').textContent = 'Status: ' + data.status;
+                })
+                .catch(error => console.error('Error:', error));
+
+            // Fetch items and display them
+            fetch('/api/items')
+                .then(response => response.json())
+                .then(data => {
+                    const listBox = document.getElementById('listBox');
+                    listBox.innerHTML = ''; // Clear the list box before adding new items
+                    
+                    data.items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.classList.add('item');
+                        div.textContent = item;
+                        listBox.appendChild(div);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Function to toggle the status between "ON" and "OFF"
+        function changeStatus() {
+            fetch('/api/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update the displayed status on the page
+                document.getElementById('status').textContent = 'Status: ' + data.status;
+            })
+            .catch(error => console.error('Error:', error));  // Log errors to the console
+        }
+    </script>
+</body>
+</html>
