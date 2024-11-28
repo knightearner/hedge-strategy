@@ -26,6 +26,12 @@ def get_switch_status():
     else:
         return False
 
+def get_logs():
+    return [x['logs'] for x in collection.find({"name": "log"})]
+
+
+def append_logs(st):
+    collection.insert_many([{"name": "log", "logs": st}])
 
 
 def get_BookedPL(client):
@@ -348,7 +354,19 @@ def option_hedge(client):
             open_flag='No_Open_Positions'
     
     print('------------------------------------------------------------',flush=True)
-            
+    
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : flag = '+str(flag))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : open_flag = '+str(open_flag))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : _flag = '+str(_flag))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : ls_nf[-5:] = '+str(ls_nf[-5:]))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : ls_bnf[-5:] = '+str(ls_bnf[-5:]))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : diff_[-5:] = '+str(diff_[-5:]))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : len(final_list_2) = '+str(len(final_list_2)))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : len(profit) = '+str(len(profit)))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : len(bnf_close) = '+str(len(bnf_close)))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : final_list_2[-5:] = '+str(final_list_2[-5:]))
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : profit[-5:] = '+str(profit[-5:]))
+
     print('flag = ',flag,flush=True)
     print('open_flag = ',open_flag,flush=True)
     print('_flag = ',_flag,flush=True)
@@ -396,7 +414,9 @@ def option_hedge(client):
     BookedPL=get_BookedPL(client)
     print('------------------------------------------')
     print('BookedPL = ',BookedPL,flush=True)
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : BookedPL = '+str(BookedPL))
     print('------------------------------------------')
+    append_logs('------------------------------------------------------------')
     # insert_val(BookedPL,first_instrument_Close,second_instrument_Close)
     
 
@@ -432,10 +452,12 @@ def infinite_loop():
     while True:
         day_number=datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
         print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')),flush=True)
+        append_logs('Loop Time = '+str(datetime.now(pytz.timezone('Asia/Kolkata'))))
         time.sleep(10)
         if check_market_timing() and (day_number not in [5,6]) and get_switch_status():
             broker = broker_login()
             while True:
+                append_logs('Running = '+str(datetime.now(pytz.timezone('Asia/Kolkata'))))
                 print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')),flush=True)
                 # time.sleep(290)
                 time.sleep(10)
@@ -451,16 +473,6 @@ def start_infinite_loop():
     thread.daemon = True  # This makes the thread exit when the main program exits
     thread.start()
 
-
-def get_switch_status():
-    switch = collection.find_one({"name": "switch_status"})
-    if switch:
-        return switch["status"]
-    else:
-        return False
-
-def get_logs():
-    return [x['logs'] for x in collection.find({"name": "log"})]
 
 
 
