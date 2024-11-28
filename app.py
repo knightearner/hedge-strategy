@@ -27,7 +27,7 @@ def get_switch_status():
         return False
 
 def get_logs():
-    return [x['logs'] for x in collection.find({"name": "log"})]
+    return [x['logs'] for x in collection.find({"name": "log"})][-20:]
 
 
 def append_logs(st):
