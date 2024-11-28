@@ -20,7 +20,6 @@ collection = db["switch"]  # Collection name
 
 
 def get_switch_status():
-    return True
     switch = collection.find_one({"name": "switch_status"})
     if switch:
         return switch["status"]
@@ -422,7 +421,7 @@ def option_hedge(client):
 
 
 
-from flask import Flask
+from flask import Flask, jsonify, render_template
 import threading
 import time
 
@@ -452,10 +451,44 @@ def start_infinite_loop():
     thread.daemon = True  # This makes the thread exit when the main program exits
     thread.start()
 
-# Define a simple route for the Flask app
+
+def get_switch_status():
+    switch = collection.find_one({"name": "switch_status"})
+    if switch:
+        return switch["status"]
+    else:
+        return False
+
+def get_logs():
+    return [x['logs'] for x in collection.find({"name": "log"})]
+
+
+
 @app.route('/')
 def index():
-    return "Flask is running. The infinite loop is also running in the background."
+    return render_template('index.html')  # Serve the HTML page
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    status = get_switch_status()
+    return jsonify({'status': status})  # Return the current status
+
+@app.route('/api/items', methods=['GET'])
+def get_items():
+    items = get_logs()
+    return jsonify({'items': items})  # Return list of items
+
+@app.route('/api/status', methods=['POST'])
+def toggle_status():
+    # global status
+    # Toggle the status between "ON" and "OFF"
+    if get_switch_status():
+        collection.find_one_and_update({"name": "switch_status"}, {"$set": { "status": False }})
+    else:
+        collection.find_one_and_update({"name": "switch_status"}, {"$set": { "status": True }})
+    status=get_switch_status()
+    return jsonify({'status': status})  # Return the new status
+
 
 if __name__ == '__main__':
     # Start the infinite loop in a separate thread before the app runs
