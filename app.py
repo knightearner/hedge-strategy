@@ -20,6 +20,7 @@ collection = db["switch"]  # Collection name
 
 
 def get_switch_status():
+    return True
     switch = collection.find_one({"name": "switch_status"})
     if switch:
         return switch["status"]
