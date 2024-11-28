@@ -434,17 +434,15 @@ def infinite_loop():
         print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')))
         time.sleep(10)
         if check_market_timing() and (day_number not in [5,6]) and get_switch_status():
-        broker = broker_login()
-        while True:
-            print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')))
-            # time.sleep(290)
-            time.sleep(10)
-            print(check_market_timing() and get_switch_status())
-            print(get_switch_status())
-            if check_market_timing() and get_switch_status():
-                option_hedge(broker)
-            else:
-            break
+            broker = broker_login()
+            while True:
+                print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')))
+                # time.sleep(290)
+                time.sleep(10)
+                if check_market_timing() and get_switch_status():
+                    option_hedge(broker)
+                else:
+                    break
 
 
 # Start the infinite loop in a separate thread
@@ -461,3 +459,4 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
