@@ -445,8 +445,7 @@ def infinite_loop():
                     break
 
 
-# Start the infinite loop in a separate thread
-@app.before_first_request
+# Function to start the infinite loop in a separate thread
 def start_infinite_loop():
     thread = threading.Thread(target=infinite_loop)
     thread.daemon = True  # This makes the thread exit when the main program exits
@@ -458,5 +457,6 @@ def index():
     return "Flask is running. The infinite loop is also running in the background."
 
 if __name__ == '__main__':
+    # Start the infinite loop in a separate thread before the app runs
+    start_infinite_loop()
     app.run(debug=True)
-
