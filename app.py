@@ -347,21 +347,21 @@ def option_hedge(client):
         else:
             open_flag='No_Open_Positions'
     
-    print('------------------------------------------------------------')
+    print('------------------------------------------------------------',flush=True)
             
-    print('flag = ',flag)
-    print('open_flag = ',open_flag)
-    print('_flag = ',_flag)
-    print(ls_nf[-5:])
-    print(ls_bnf[-5:])
-    print(diff_[-5:])
-    print(len(final_list_2))
-    print(len(profit))
-    print(len(bnf_close))
-    print(final_list_2[-5:])
-    print(profit[-5:])
+    print('flag = ',flag,flush=True)
+    print('open_flag = ',open_flag,flush=True)
+    print('_flag = ',_flag,flush=True)
+    print(ls_nf[-5:],flush=True)
+    print(ls_bnf[-5:],flush=True)
+    print(diff_[-5:],flush=True)
+    print(len(final_list_2),flush=True)
+    print(len(profit),flush=True)
+    print(len(bnf_close),flush=True)
+    print(final_list_2[-5:],flush=True)
+    print(profit[-5:],flush=True)
 
-    print('------------------------------------------------------------')
+    print('------------------------------------------------------------',flush=True)
 
     req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(First_instrument_ce_ScripCode)}]
     First_instrument_ce_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
@@ -395,7 +395,7 @@ def option_hedge(client):
 
     BookedPL=get_BookedPL(client)
     print('------------------------------------------')
-    print('BookedPL = ',BookedPL)
+    print('BookedPL = ',BookedPL,flush=True)
     print('------------------------------------------')
     # insert_val(BookedPL,first_instrument_Close,second_instrument_Close)
     
@@ -415,7 +415,7 @@ def option_hedge(client):
 
     print('=====================================================')
     # print(_variable_object)
-    print(bnf_close[-2],nf_close[-2])
+    print(bnf_close[-2],nf_close[-2],flush=True)
     print('=====================================================')
 
 
@@ -431,12 +431,12 @@ app = Flask(__name__)
 def infinite_loop():
     while True:
         day_number=datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
-        print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')))
+        print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')),flush=True)
         time.sleep(10)
         if check_market_timing() and (day_number not in [5,6]) and get_switch_status():
             broker = broker_login()
             while True:
-                print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')))
+                print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')),flush=True)
                 # time.sleep(290)
                 time.sleep(10)
                 if check_market_timing() and get_switch_status():
