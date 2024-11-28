@@ -1,6 +1,3 @@
-from keep_alive_main import keep_alive
-keep_alive()
-
 from py5paisa import *
 from datetime import *
 import pytz
@@ -106,16 +103,6 @@ def broker_login():
     return client
 
 
-
-# def write_json(dictionary):
-#     json_object = json.dumps(dictionary, indent=4)
-#     with open(r"C:\Users\monda\postion_app\dictionary.json", "w") as outfile:
-#         outfile.write(json_object)
-
-# def read_json():
-#     with open(r"C:\Users\monda\postion_app\dictionary.json", 'r') as openfile:
-# 	    json_object = json.load(openfile)
-#     return json_object
 
 
 def find_stoploss_diff(current_diff,stoploss_diff):
@@ -278,82 +265,6 @@ def option_hedge(client):
 
 
 
-    # print('++++++++++++++++++++++++++++++++++++++++')
-    # print(ls_nf[-2]>ls_bnf[-2] and diff_[-2]>diff_threshold)
-    # print(ls_nf[-2]<ls_bnf[-2] and diff_[-2]>diff_threshold)
-    # print('++++++++++++++++++++++++++++++++++++++++')
-
-    # if ls_nf[-2]>ls_bnf[-2] and diff_[-2]>diff_threshold and flag!='BUY':        
-    #     if nf_price!=0 and bnf_price!=0:
-    #         pf+=(bnf_close[-2]-bnf_price)*BNF_lot+(nf_price-nf_close[-2])*NF_lot
-
-    #     nf_price=nf_close[-2]
-    #     bnf_price=bnf_close[-2]
-    #     flag='BUY'
-    #     position_diff=diff_[-2]
-    #     stoploss_diff=position_diff-0.005
-
-    # elif ls_nf[-2]<ls_bnf[-2] and diff_[-2]>diff_threshold and flag!='SELL':
-
-    #     if nf_price!=0 and bnf_price!=0:
-    #         pf+=(nf_close[-2]-nf_price)*NF_lot+(bnf_price-bnf_close[-2])*BNF_lot
-
-    #     nf_price=nf_close[-2]
-    #     bnf_price=bnf_close[-2]
-    #     flag='SELL'
-    #     position_diff=diff_[-2]
-    #     stoploss_diff=position_diff-0.005
-
-    # elif diff_[-2]<stoploss_diff and flag!='':
-        
-    #     if flag=='SELL':            
-    #         if nf_price!=0 and bnf_price!=0:
-    #             pf+=(bnf_close[-2]-bnf_price)*BNF_lot+(nf_price-nf_close[-2])*NF_lot
-    #     elif flag=='BUy':
-    #         if nf_price!=0 and bnf_price!=0:
-    #             pf+=(nf_close[-2]-nf_price)*NF_lot+(bnf_price-bnf_close[-2])*BNF_lot   
-    #     nf_price=0
-    #     bnf_price=0
-    #     flag=''
-
-        
-    # if flag=='SELL':            
-    #     if nf_price!=0 and bnf_price!=0:
-    #         profit.append(pf+(bnf_close[-2]-bnf_price)*BNF_lot+(nf_price-nf_close[-2])*NF_lot)
-    # elif flag=='BUY':
-    #     if nf_price!=0 and bnf_price!=0:
-    #         profit.append(pf+(nf_close[-2]-nf_price)*NF_lot+(bnf_price-bnf_close[-2])*BNF_lot)     
-    
-    # stoploss_diff=find_stoploss_diff(position_diff,diff_[-2],stoploss_diff)    
-
-    # window_size=20
-    # numbers_series = pd.Series(profit)
-    # windows = numbers_series.rolling(window_size)
-    # moving_averages = windows.mean()
-    # moving_averages_list = moving_averages.tolist()
-    # final_list = moving_averages_list[window_size - 1:]
-
-    # final_list_2=[0]*window_size
-    # final_list_2.extend(final_list)
-
-    
-    # final_flag=''
-    # if len(profit)>2:
-    #     if profit[-2]>final_list_2[-2] and profit[-3]<final_list_2[-3] :
-    #         if flag=='BUY':
-    #             final_flag='BUY'
-    #             position_flag=True
-    #         if flag=='SELL':
-    #             final_flag='SELL'
-    #             position_flag=True
-
-    #     elif profit[-2]<final_list_2[-2] and profit[-3]>final_list_2[-3] and position_flag:
-
-    #         if flag=='SELL':
-    #             final_flag=''
-    #         elif flag=='BUY':
-    #             final_flag=''
-    #         position_flag=False
 
 
     final_flag=''
@@ -507,31 +418,46 @@ def option_hedge(client):
     print(bnf_close[-2],nf_close[-2])
     print('=====================================================')
 
-    # if x_axis[-2]!=variable_object['last_candle']:
-    #     write_json(_variable_object)
+
+
+
+from flask import Flask
+import threading
+import time
+
+app = Flask(__name__)
+
+# Define the function for the infinite loop
+def infinite_loop():
+    while True:
+        day_number=datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
+        print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')))
+        time.sleep(10)
+        if check_market_timing() and (day_number not in [5,6]) and get_switch_status():
+        broker = broker_login()
+        while True:
+            print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')))
+            # time.sleep(290)
+            time.sleep(10)
+            print(check_market_timing() and get_switch_status())
+            print(get_switch_status())
+            if check_market_timing() and get_switch_status():
+                option_hedge(broker)
+            else:
+            break
+
+
+# Start the infinite loop in a separate thread
+@app.before_first_request
+def start_infinite_loop():
+    thread = threading.Thread(target=infinite_loop)
+    thread.daemon = True  # This makes the thread exit when the main program exits
+    thread.start()
+
+# Define a simple route for the Flask app
+@app.route('/')
+def index():
+    return "Flask is running. The infinite loop is also running in the background."
 
 if __name__ == '__main__':
-    # broker = broker_login()
-    # option_hedge(broker)
-    # time.sleep(10)
-
-
-  while True:
-    # broker = broker_login()
-    # option_hedge(broker)
-
-    day_number=datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
-    print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')))
-    time.sleep(10)
-    if check_market_timing() and (day_number not in [5,6]) and get_switch_status():
-      broker = broker_login()
-      while True:
-        print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')))
-        # time.sleep(290)
-        time.sleep(10)
-        print(check_market_timing() and get_switch_status())
-        print(get_switch_status())
-        if check_market_timing() and get_switch_status():
-            option_hedge(broker)
-        else:
-          break
+    app.run(debug=True)
