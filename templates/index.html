@@ -22,37 +22,45 @@
             height: 100vh;
             margin: 0;
             padding: 0;
+            flex-direction: column;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
         }
 
         /* Container for Left and Right Section */
         .container {
             display: flex;
-            justify-content: space-between;
+            flex-wrap: wrap;
+            justify-content: center;
             align-items: flex-start;
-            width: 80%;
+            width: 90%;
             max-width: 1200px;
             background-color: #fff;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-            gap: 30px; /* Adding gap between left and right columns */
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         /* Left Column (Buttons) */
         .left-column {
             flex: 1;
             text-align: center;
+            min-width: 250px;
+            padding: 10px;
         }
 
         /* Right Column (Status and List) */
         .right-column {
             flex: 2;
             text-align: left;
+            min-width: 250px;
+            padding: 10px;
         }
 
         /* Status Display */
         #status {
-            font-size: 1.6rem; /* Smaller font size for status */
+            font-size: 1.4rem; /* Slightly smaller font size for status */
             font-weight: 400;
             color: #333;
             background-color: #f5f5f5;
@@ -60,6 +68,7 @@
             padding: 15px;
             margin-bottom: 1.5rem; /* Gap after the status box */
             transition: background-color 0.3s ease;
+            word-wrap: break-word; /* Ensures the text does not overflow */
         }
 
         /* List Box */
@@ -69,13 +78,13 @@
             padding: 10px;
             border: 1px solid #ddd;
             box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-            margin-top: 1.5rem; /* Gap before the list box */
+            margin-top: 1.5rem;
             max-height: 200px;
             overflow-y: auto;
         }
 
         .item {
-            font-size: 1rem; /* Smaller font size for items */
+            font-size: 1rem;
             color: #333;
             padding: 10px;
             border-bottom: 1px solid #eee;
@@ -92,36 +101,73 @@
 
         /* Buttons */
         button {
-            background-color: #333; /* Dark grey button */
+            background-color: #333;
             color: #fff;
             padding: 12px 30px;
-            font-size: 1rem; /* Smaller font size */
+            font-size: 1rem;
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            margin: 8px 0; /* Adding margin between buttons */
+            margin: 10px 0;
             transition: background-color 0.3s, transform 0.2s ease-in-out;
-            width: 200px;
+            width: 100%; /* Full width on mobile */
+            max-width: 200px; /* Limit max-width */
         }
 
         button:hover {
-            background-color: #555; /* Slightly lighter grey on hover */
+            background-color: #555;
             transform: translateY(-3px);
         }
 
         button:active {
-            background-color: #222; /* Darker gray on active */
+            background-color: #222;
             transform: translateY(0);
         }
 
         /* Title */
         h1 {
-            font-size: 2.2rem; /* Smaller font size */
-            color: #222; /* Darker gray for the title */
-            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+            color: #222;
+            margin-bottom: 1rem;
             font-weight: 500;
         }
 
+        /* Responsive adjustments */
+        @media screen and (max-width: 768px) {
+            body {
+                flex-direction: column;
+                padding: 10px;
+            }
+
+            .container {
+                flex-direction: column;
+                gap: 15px;
+                padding: 20px;
+            }
+
+            .left-column, .right-column {
+                min-width: 100%;
+            }
+
+            #status {
+                font-size: 1.2rem;
+            }
+
+            button {
+                width: 100%; /* Full width for buttons on smaller screens */
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            #status {
+                font-size: 1rem;
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
