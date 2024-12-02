@@ -1,3 +1,6 @@
+# from keep_alive_main import keep_alive
+# keep_alive()
+
 from py5paisa import *
 from datetime import *
 import pytz
@@ -5,7 +8,6 @@ import time
 import pandas as pd
 import pyotp
 import json
-import os
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -27,12 +29,6 @@ def get_switch_status():
     else:
         return False
 
-def get_logs():
-    return [x['logs'] for x in collection.find({"name": "log"})][-20:]
-
-
-def append_logs(st):
-    collection.insert_many([{"name": "log", "logs": st}])
 
 
 def get_BookedPL(client):
@@ -46,10 +42,17 @@ def get_BookedPL(client):
 
 def check_market_timing():
     if datetime.now(pytz.timezone('Asia/Kolkata')).hour == 9:
-        if datetime.now(pytz.timezone('Asia/Kolkata')).minute >=16  and get_switch_status():
+        if datetime.now(pytz.timezone('Asia/Kolkata')).minute >=20  and get_switch_status():
             return True
     elif datetime.now(pytz.timezone('Asia/Kolkata')).hour > 9 and datetime.now(pytz.timezone('Asia/Kolkata')).hour < 16 and get_switch_status():
         return True
+    return False
+
+
+def check_squareoff_timing():
+    if datetime.now(pytz.timezone('Asia/Kolkata')).hour == 15:
+        if datetime.now(pytz.timezone('Asia/Kolkata')).minute >=15:
+            return True
     return False
 
 def squareoff_all_positions(client):
@@ -63,7 +66,15 @@ def squareoff_all_positions(client):
     # update_switch_OFF()
 
 
-
+def squareoff_positions(client,instrument_name):
+    
+    for pos in client.positions():
+        NetQty=pos['NetQty']
+        if NetQty>0 and instrument_name in pos['ScripName']:
+            LTP=pos['LTP']-1
+            ScripCode=int(pos['ScripCode'])
+            client.place_order(OrderType='S', Exchange='N', ExchangeType="D", ScripCode=ScripCode, Qty=NetQty, Price=LTP)
+            print('SquareOff '+pos['ScripName'])
 
 
 def closest_index(lst, K):
@@ -111,6 +122,16 @@ def broker_login():
 
 
 
+# def write_json(dictionary):
+#     json_object = json.dumps(dictionary, indent=4)
+#     with open(r"C:\Users\monda\postion_app\dictionary.json", "w") as outfile:
+#         outfile.write(json_object)
+
+# def read_json():
+#     with open(r"C:\Users\monda\postion_app\dictionary.json", 'r') as openfile:
+# 	    json_object = json.load(openfile)
+#     return json_object
+
 
 def find_stoploss_diff(current_diff,stoploss_diff):
     if (current_diff-stoploss_diff)>0.01:
@@ -130,30 +151,21 @@ def option_hedge(client):
     time_now = datetime.now(pytz.timezone('Asia/Kolkata'))
     print('Time Now = ',time_now)
     to_ = time_now.date() + timedelta(days=2)
+    from_ = time_now.date()
 
-    # Find the last Sunday
-    days_since_sunday = (time_now.weekday() - 6) % 7
-    last_sunday = time_now - timedelta(days=days_since_sunday)
-    from_=last_sunday.strftime('%Y-%m-%d')
-    
-    timeframe='5m'
-    # from_='2024-10-18'
-    diff_threshold=0.01
-    print(from_)
 
-    # from_ = time_now.date() - timedelta(days=2)
 
     first_instrument_script=1333
-    second_instrument_script=1594
+    second_instrument_script=4963
 
     NF_lot=550
-    BNF_lot=400
+    BNF_lot=700
 
     first_instrument_lot=NF_lot
     second_instrument_lot=BNF_lot
 
     first_instrument_name='HDFCBANK'
-    second_instrument_name='INFY'
+    second_instrument_name='ICICIBANK'
 
     print('first_instrument_name = ',first_instrument_name)
     print('second_instrument_name = ',second_instrument_name)
@@ -162,7 +174,7 @@ def option_hedge(client):
     bnf = client.historical_data('N', 'C', second_instrument_script, timeframe, str(from_),str(to_))
     nf = client.historical_data('N', 'C', first_instrument_script, timeframe, str(from_),str(to_))
 
-    common_Datetime=nf.merge(bnf, on='Datetime', how='inner').Datetime.values.tolist()
+    common_Datetime=nf.merge(bnf, on='Datetime', how='inner').Datetime.values.tolist()[4:]
 
     bnf=bnf[bnf.Datetime.isin(common_Datetime)].reset_index(drop=True)
     nf=nf[nf.Datetime.isin(common_Datetime)].reset_index(drop=True)
@@ -177,120 +189,20 @@ def option_hedge(client):
     
     ls_bnf=[x/st_bnf for x in bnf_close]
     ls_nf=[x/st_nf for x in nf_close]
-    
-    diff_=[]
-    for i in range(len(ls_bnf)):
-        diff_.append(abs(ls_bnf[i]-ls_nf[i]))
 
 
+    flag_bnf=''
+    if ls_bnf[-2]>1 :
+        flag_bnf='BUY'
+    elif ls_bnf[-2]<1 :
+        flag_bnf='SELL'
 
 
-
-    profit=[]
-    pf=0
-
-    nf_price=0
-    bnf_price=0
-    
-    flag=''
-    position_diff=0
-    position_flag=False
-    stoploss_diff=0.005
-    final_list_2=[]
-
-    for i in range(1,len(ls_bnf)-1):
-        
-        if date_IN_range(x_axis[i]):
-            continue
-        if ls_nf[i]>ls_bnf[i] and diff_[i]>0.01 and flag!='BUY':            
-            if nf_price!=0 and bnf_price!=0:
-                pf+=(bnf_close[i]-bnf_price)*BNF_lot+(nf_price-nf_close[i])*NF_lot
-            nf_price=nf_close[i]
-            bnf_price=bnf_close[i]
-            flag='BUY'
-            position_diff=diff_[i]
-            stoploss_diff=position_diff-0.005
-
-        elif ls_nf[i]<ls_bnf[i] and diff_[i]>0.01 and flag!='SELL':
-            if nf_price!=0 and bnf_price!=0:
-                pf+=(nf_close[i]-nf_price)*NF_lot+(bnf_price-bnf_close[i])*BNF_lot
-            nf_price=nf_close[i]
-            bnf_price=bnf_close[i]
-            flag='SELL'
-            position_diff=diff_[i]
-            stoploss_diff=position_diff-0.005
-
-        elif diff_[i]<stoploss_diff and flag!='':
-            
-            if flag=='SELL':            
-                if nf_price!=0 and bnf_price!=0:
-                    pf+=(bnf_close[i]-bnf_price)*BNF_lot+(nf_price-nf_close[i])*NF_lot
-            elif flag=='BUY':
-                if nf_price!=0 and bnf_price!=0:
-                    pf+=(nf_close[i]-nf_price)*NF_lot+(bnf_price-bnf_close[i])*BNF_lot   
-            nf_price=0
-            bnf_price=0
-            flag=''
-            
-        if flag=='SELL':            
-            if nf_price!=0 and bnf_price!=0:
-                profit.append(pf+(bnf_close[i]-bnf_price)*BNF_lot+(nf_price-nf_close[i])*NF_lot)
-        elif flag=='BUY':
-            if nf_price!=0 and bnf_price!=0:
-                profit.append(pf+(nf_close[i]-nf_price)*NF_lot+(bnf_price-bnf_close[i])*BNF_lot)     
-        
-        stoploss_diff=find_stoploss_diff(diff_[i],stoploss_diff)        
-    
-        window_size=20
-        numbers_series = pd.Series(profit)
-        windows = numbers_series.rolling(window_size)
-        moving_averages = windows.mean()
-        moving_averages_list = moving_averages.tolist()
-        final_list = moving_averages_list[window_size - 1:]
-
-        final_list_2=[0]*window_size
-        final_list_2.extend(final_list)
-        
-
-
-
-    # variable_object=read_json()
-
-    # profit=variable_object['profit']
-    # pf=variable_object['pf']
-    # nf_price=variable_object['nf_price']
-    # bnf_price=variable_object['bnf_price']
-    # flag=variable_object['flag']
-    # position_diff=variable_object['position_diff']
-    # position_flag=variable_object['position_flag']
-    # stoploss_diff=variable_object['stoploss_diff']
-    # final_flag=variable_object['final_flag']
-
-    skip_flag= False
-    if date_IN_range(x_axis[-2]):
-        skip_flag= True
-
-
-
-
-
-    final_flag=''
-    if len(profit)>2:
-        if profit[-2]>final_list_2[-2]:
-            if flag=='BUY':
-                final_flag='BUY'
-                position_flag=True
-            if flag=='SELL':
-                final_flag='SELL'
-                position_flag=True
-
-        elif profit[-2]<final_list_2[-2] and position_flag:
-
-            if flag=='SELL':
-                final_flag=''
-            elif flag=='BUY':
-                final_flag=''
-            position_flag=False
+    flag_nf=''
+    if ls_nf[-2]>1 :
+        flag_nf='BUY'
+    elif ls_nf[-2]<1 :
+        flag_nf='SELL'
 
 
 
@@ -329,58 +241,28 @@ def option_hedge(client):
 
     print(First_instrument_ce_ScripCode,First_instrument_pe_ScripCode)
     print(Second_instrument_ce_ScripCode,Second_instrument_pe_ScripCode)
-
-
-    _flag=''
-    if final_flag=='BUY':
-        _flag='First'
-    elif final_flag=='SELL':
-        _flag='Second'
-    else:
-        _flag='Square Off All Positions'
-        squareoff_all_positions(client)
      
 
 
-    open_flag=''
+    flag_bnf_=''
+    flag_nf_=''
+
     for pos in client.positions():
-        # print(pos)
+
         if first_instrument_name in pos['ScripName'] and 'CE'in pos['ScripName'] and pos['NetQty']>0:
-            open_flag='First'
-            break
-        elif second_instrument_name in pos['ScripName'] and 'CE'in pos['ScripName'] and pos['NetQty']>0:
-            open_flag='Second'
-            break
-        else:
-            open_flag='No_Open_Positions'
-    
-    print('------------------------------------------------------------',flush=True)
-    
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : flag = '+str(flag))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : open_flag = '+str(open_flag))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : _flag = '+str(_flag))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : ls_nf[-5:] = '+str(ls_nf[-5:]))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : ls_bnf[-5:] = '+str(ls_bnf[-5:]))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : diff_[-5:] = '+str(diff_[-5:]))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : len(final_list_2) = '+str(len(final_list_2)))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : len(profit) = '+str(len(profit)))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : len(bnf_close) = '+str(len(bnf_close)))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : final_list_2[-5:] = '+str(final_list_2[-5:]))
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : profit[-5:] = '+str(profit[-5:]))
+            flag_nf_='BUY'
+        elif first_instrument_name in pos['ScripName'] and 'PE'in pos['ScripName'] and pos['NetQty']>0:
+            flag_nf_='SELL'
 
-    print('flag = ',flag,flush=True)
-    print('open_flag = ',open_flag,flush=True)
-    print('_flag = ',_flag,flush=True)
-    print(ls_nf[-5:],flush=True)
-    print(ls_bnf[-5:],flush=True)
-    print(diff_[-5:],flush=True)
-    print(len(final_list_2),flush=True)
-    print(len(profit),flush=True)
-    print(len(bnf_close),flush=True)
-    print(final_list_2[-5:],flush=True)
-    print(profit[-5:],flush=True)
 
-    print('------------------------------------------------------------',flush=True)
+        if second_instrument_name in pos['ScripName'] and 'CE'in pos['ScripName'] and pos['NetQty']>0:
+            flag_bnf_='BUY'
+
+        elif second_instrument_name in pos['ScripName'] and 'PE'in pos['ScripName'] and pos['NetQty']>0:
+            flag_bnf_='SELL'
+
+
+
 
     req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(First_instrument_ce_ScripCode)}]
     First_instrument_ce_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
@@ -395,50 +277,40 @@ def option_hedge(client):
     req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(Second_instrument_pe_ScripCode)}]
     Second_instrument_pe_price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
 
-    # print(_flag,open_flag,skip_flag)
     
-    if _flag=='First' and open_flag !='First' and skip_flag==False:
-        print('First Long start')
-        # client.squareoff_all()
+    if check_squareoff_timing():
         squareoff_all_positions(client)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_ce_ScripCode), Qty=first_instrument_lot, Price=First_instrument_ce_Price)
+
+
+    if flag_bnf=='BUY' and flag_bnf_!='BUY' and check_squareoff_timing()==False:
+        print('BUY ',second_instrument_name)
+        squareoff_positions(client,second_instrument_name)
+        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_ce_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_ce_price)
+        
+    
+    elif flag_bnf=='SELL' and flag_bnf_!='SELL' and check_squareoff_timing()==False:
+        print('SELL ',second_instrument_name)
+        squareoff_positions(client,second_instrument_name)
         client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_pe_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_pe_price)
+
+    if flag_nf=='BUY' and flag_nf_!='BUY' and check_squareoff_timing()==False:
+        print('BUY ',first_instrument_name)
+        squareoff_positions(client,first_instrument_name)
+        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_ce_ScripCode), Qty=first_instrument_lot, Price=First_instrument_ce_Price)
         
-    if _flag=='Second' and open_flag!='Second' and skip_flag==False:
-        print('Second Long start')
-        # client.squareoff_all()
-        squareoff_all_positions(client)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_ce_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_ce_Price)
+    
+    elif flag_nf=='SELL' and flag_nf_!='SELL' and check_squareoff_timing()==False:
+        print('SELL ',first_instrument_name)
+        squareoff_positions(client,first_instrument_name)
         client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_pe_ScripCode), Qty=first_instrument_lot, Price=First_instrument_pe_Price)
-        
+
+
+
 
     BookedPL=get_BookedPL(client)
     print('------------------------------------------')
-    print('BookedPL = ',BookedPL,flush=True)
-    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : BookedPL = '+str(BookedPL))
+    print('BookedPL = ',BookedPL)
     print('------------------------------------------')
-    append_logs('------------------------------------------------------------')
-    # insert_val(BookedPL,first_instrument_Close,second_instrument_Close)
-    
-
-    # _variable_object={
-    # "profit":profit,
-    # "pf":pf,
-    # "nf_price":nf_price,
-    # "bnf_price":bnf_price,  
-    # "flag":flag,
-    # "position_diff":position_diff,
-    # "position_flag":position_flag,
-    # "stoploss_diff":stoploss_diff,
-    # "final_flag":final_flag,
-    # 'last_candle':x_axis[-2]
-    # }
-
-    print('=====================================================')
-    # print(_variable_object)
-    print(bnf_close[-2],nf_close[-2],flush=True)
-    print('=====================================================')
-
 
 
 
