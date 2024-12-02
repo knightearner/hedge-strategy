@@ -1,4 +1,3 @@
-import os
 from py5paisa import *
 from datetime import *
 import pytz
@@ -6,6 +5,7 @@ import time
 import pandas as pd
 import pyotp
 import json
+import os
 
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -26,6 +26,13 @@ def get_switch_status():
         return switch["status"]
     else:
         return False
+
+def get_logs():
+    return [x['logs'] for x in collection.find({"name": "log"})][-20:]
+
+
+def append_logs(st):
+    collection.insert_many([{"name": "log", "logs": st}])
 
 
 
@@ -120,28 +127,6 @@ def broker_login():
 
 
 
-# def write_json(dictionary):
-#     json_object = json.dumps(dictionary, indent=4)
-#     with open(r"C:\Users\monda\postion_app\dictionary.json", "w") as outfile:
-#         outfile.write(json_object)
-
-# def read_json():
-#     with open(r"C:\Users\monda\postion_app\dictionary.json", 'r') as openfile:
-# 	    json_object = json.load(openfile)
-#     return json_object
-
-
-def find_stoploss_diff(current_diff,stoploss_diff):
-    if (current_diff-stoploss_diff)>0.01:
-        stoploss_diff=stoploss_diff+(current_diff-stoploss_diff)*0.6
-    return stoploss_diff
-
-def date_IN_range(dt):
-    # print(dt)
-    for i in ['15:25:00', '15:30:00','09:15:00']:
-        if i in dt:
-            return True
-    return False
 
 
 def option_hedge(client):
@@ -150,7 +135,7 @@ def option_hedge(client):
     print('Time Now = ',time_now)
     to_ = time_now.date() + timedelta(days=2)
     from_ = time_now.date()
-
+    timeframe='1m'
 
 
     first_instrument_script=1333
@@ -273,7 +258,7 @@ def option_hedge(client):
     Second_instrument_ce_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
 
     req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(Second_instrument_pe_ScripCode)}]
-    Second_instrument_pe_price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
+    Second_instrument_pe_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
 
     
     if check_squareoff_timing():
@@ -283,13 +268,13 @@ def option_hedge(client):
     if flag_bnf=='BUY' and flag_bnf_!='BUY' and check_squareoff_timing()==False:
         print('BUY ',second_instrument_name)
         squareoff_positions(client,second_instrument_name)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_ce_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_ce_price)
+        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_ce_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_ce_Price)
         
     
     elif flag_bnf=='SELL' and flag_bnf_!='SELL' and check_squareoff_timing()==False:
         print('SELL ',second_instrument_name)
         squareoff_positions(client,second_instrument_name)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_pe_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_pe_price)
+        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_pe_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_pe_Price)
 
     if flag_nf=='BUY' and flag_nf_!='BUY' and check_squareoff_timing()==False:
         print('BUY ',first_instrument_name)
@@ -309,9 +294,36 @@ def option_hedge(client):
     print('------------------------------------------')
     print('BookedPL = ',BookedPL)
     print('------------------------------------------')
+    append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : BookedPL = '+str(BookedPL))
+    
 
 
 
+if __name__ == '__main__':
+    # broker = broker_login()
+    # option_hedge(broker)
+    # time.sleep(10)
+
+
+  while True:
+    # broker = broker_login()
+    # option_hedge(broker)
+
+    day_number=datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
+    print('Loop Time ', datetime.now(pytz.timezone('Asia/Kolkata')))
+    time.sleep(10)
+    if check_market_timing() and (day_number not in [5,6]) and get_switch_status():
+      broker = broker_login()
+      while True:
+        print('Running ', datetime.now(pytz.timezone('Asia/Kolkata')))
+        # time.sleep(290)
+        time.sleep(10)
+        print(check_market_timing() and get_switch_status())
+        print(get_switch_status())
+        if check_market_timing() and get_switch_status():
+            option_hedge(broker)
+        else:
+          break
 from flask import Flask, jsonify, render_template
 import threading
 import time
