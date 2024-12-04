@@ -175,16 +175,16 @@ def option_hedge(client):
 
 
     flag_bnf=''
-    if ls_bnf[-2]>1 :
+    if ls_bnf[-2]>1.002 :
         flag_bnf='BUY'
-    elif ls_bnf[-2]<1 :
+    elif ls_bnf[-2]<0.998 :
         flag_bnf='SELL'
 
 
     flag_nf=''
-    if ls_nf[-2]>1 :
+    if ls_nf[-2]>1.002 :
         flag_nf='BUY'
-    elif ls_nf[-2]<1 :
+    elif ls_nf[-2]<0.998 :
         flag_nf='SELL'
 
 
@@ -263,6 +263,13 @@ def option_hedge(client):
     
     if check_squareoff_timing():
         squareoff_all_positions(client)
+
+
+    if flag_bnf=='':
+        squareoff_positions(client,second_instrument_name)
+
+    if flag_nf=='':
+        squareoff_positions(client,first_instrument_name)
 
 
     if flag_bnf=='BUY' and flag_bnf_!='BUY' and check_squareoff_timing()==False:
