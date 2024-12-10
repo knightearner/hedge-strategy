@@ -2,6 +2,7 @@ from py5paisa import *
 from datetime import *
 import pytz
 import time
+import numpy as np
 import pandas as pd
 import pyotp
 import json
@@ -127,6 +128,8 @@ def broker_login():
 
 
 
+def calculate_ema(prices, period=20):
+    return prices.ewm(span=period, adjust=False).mean()
 
 
 def option_hedge(client):
@@ -138,162 +141,72 @@ def option_hedge(client):
     timeframe='1m'
 
 
-    first_instrument_script=1333
-    second_instrument_script=4963
+    first_instrument_script=999920005
 
-    NF_lot=550
-    BNF_lot=700
+    first_instrument_lot=15
 
-    first_instrument_lot=NF_lot
-    second_instrument_lot=BNF_lot
-
-    first_instrument_name='HDFCBANK'
-    second_instrument_name='ICICIBANK'
-
+    first_instrument_name='BANKNIFTY'
     print('first_instrument_name = ',first_instrument_name)
-    print('second_instrument_name = ',second_instrument_name)
+
+    df = client.historical_data('N', 'C', second_instrument_script, timeframe, str(from_),str(to_))
+
+    df['diff']=abs(df['Close']-df['Open'])
+    df['20_EMA_diff']=calculate_ema(df['diff'])
+    df['signal']=df['diff']>df['20_EMA_diff']
+    df['sig_dir']=df['Close']-df['Open']
+    df['sig_dir']=df['sig_dir'].apply(lambda x: 1 if x>0 else 0)
 
 
-    bnf = client.historical_data('N', 'C', second_instrument_script, timeframe, str(from_),str(to_))
-    nf = client.historical_data('N', 'C', first_instrument_script, timeframe, str(from_),str(to_))
+    flag='BUY'
 
-    common_Datetime=nf.merge(bnf, on='Datetime', how='inner').Datetime.values.tolist()[4:]
+    if df['signal'][-2]==True and df['sig_dir'][-2]==1:
+        flag='BUY'
+    elif df['signal'][-2]==True and df['sig_dir'][-2]==0:
+        flag='SELL'
 
-    bnf=bnf[bnf.Datetime.isin(common_Datetime)].reset_index(drop=True)
-    nf=nf[nf.Datetime.isin(common_Datetime)].reset_index(drop=True)
+    close=df.Close.values.tolist()
 
-    bnf_close=bnf.Close.values.tolist()
-    nf_close=nf.Close.values.tolist()
-    
-    st_bnf=bnf_close[0]
-    st_nf=nf_close[0]
-    
-    x_axis=bnf.Datetime.values.tolist()
-    
-    ls_bnf=[x/st_bnf for x in bnf_close]
-    ls_nf=[x/st_nf for x in nf_close]
-
-
-    flag_bnf=''
-    if ls_bnf[-2]>1.002 :
-        flag_bnf='BUY'
-    elif ls_bnf[-2]<0.998 :
-        flag_bnf='SELL'
-
-
-    flag_nf=''
-    if ls_nf[-2]>1.002 :
-        flag_nf='BUY'
-    elif ls_nf[-2]<0.998 :
-        flag_nf='SELL'
-
-
-
-
-    df_first_instrument = client.historical_data('N', 'C', first_instrument_script, timeframe, str(from_),str(to_))
-    df_second_instrument = client.historical_data('N', 'C', second_instrument_script, timeframe, str(from_),str(to_))
-    
-
-
-    df_first_instrument_close=df_first_instrument.Close.values.tolist()
-    df_second_instrument_close=df_second_instrument.Close.values.tolist()
-    
-    st_df_first_instrument_close=df_first_instrument_close[0]
-    st_df_second_instrument_close=df_second_instrument_close[0]
-
+    print(df['signal'][-2],df['sig_dir'][-2],)
     
 
     first_instrument_option_chain=get_option_chain(client,first_instrument_name)
-    second_instrument_option_chain=get_option_chain(client,second_instrument_name)
 
     first_instrument_ce=first_instrument_option_chain[0]
-    first_instrument_pe=first_instrument_option_chain[1]
-
-    second_instrument_ce=second_instrument_option_chain[0]
-    second_instrument_pe=second_instrument_option_chain[1]
-    
+    first_instrument_pe=first_instrument_option_chain[1]    
 
 
 
-    First_instrument_ce_ScripCode = first_instrument_ce.loc[closest_index(list(first_instrument_ce.StrikeRate), st_df_first_instrument_close)].ScripCode
-    First_instrument_pe_ScripCode = first_instrument_pe.loc[closest_index(list(first_instrument_pe.StrikeRate), st_df_first_instrument_close)].ScripCode
-
-    
-    Second_instrument_ce_ScripCode = second_instrument_ce.loc[closest_index(list(second_instrument_ce.StrikeRate), st_df_second_instrument_close)].ScripCode
-    Second_instrument_pe_ScripCode = second_instrument_pe.loc[closest_index(list(second_instrument_pe.StrikeRate), st_df_second_instrument_close)].ScripCode
+    First_instrument_ce_ScripCode = first_instrument_ce.loc[closest_index(list(first_instrument_ce.StrikeRate), close[-1])].ScripCode
+    First_instrument_pe_ScripCode = first_instrument_pe.loc[closest_index(list(first_instrument_pe.StrikeRate), close[-1])].ScripCode
 
     print(First_instrument_ce_ScripCode,First_instrument_pe_ScripCode)
-    print(Second_instrument_ce_ScripCode,Second_instrument_pe_ScripCode)
-     
 
 
-    flag_bnf_=''
-    flag_nf_=''
+    flag_=''
 
     for pos in client.positions():
 
-        if first_instrument_name in pos['ScripName'] and 'CE'in pos['ScripName'] and pos['NetQty']>0:
-            flag_nf_='BUY'
-        elif first_instrument_name in pos['ScripName'] and 'PE'in pos['ScripName'] and pos['NetQty']>0:
-            flag_nf_='SELL'
-
-
-        if second_instrument_name in pos['ScripName'] and 'CE'in pos['ScripName'] and pos['NetQty']>0:
-            flag_bnf_='BUY'
-
-        elif second_instrument_name in pos['ScripName'] and 'PE'in pos['ScripName'] and pos['NetQty']>0:
-            flag_bnf_='SELL'
+        if 'CE'in pos['ScripName'] and pos['NetQty']>0:
+            flag_='BUY'
+        elif 'PE'in pos['ScripName'] and pos['NetQty']>0:
+            flag_='SELL'
 
 
 
+    if check_squareoff_timing() or flag=='':
+        client.squareoff_all()
 
-    req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(First_instrument_ce_ScripCode)}]
-    First_instrument_ce_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
+    print('Signal = ',flag)
+    print('Open Position Signal = ',flag_)
 
-    req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(First_instrument_pe_ScripCode)}]
-    First_instrument_pe_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
-
-
-    req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(Second_instrument_ce_ScripCode)}]
-    Second_instrument_ce_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
-
-    req_list_ = [{"Exch": "N", "ExchType": "D", "ScripCode": str(Second_instrument_pe_ScripCode)}]
-    Second_instrument_pe_Price=(client.fetch_market_feed_scrip(req_list_)['Data'][0]['LastRate'])+1
-
-    
-    if check_squareoff_timing():
-        squareoff_all_positions(client)
-
-
-    if flag_bnf=='':
-        squareoff_positions(client,second_instrument_name)
-
-    if flag_nf=='':
-        squareoff_positions(client,first_instrument_name)
-
-
-    if flag_bnf=='BUY' and flag_bnf_!='BUY' and check_squareoff_timing()==False:
-        print('BUY ',second_instrument_name)
-        squareoff_positions(client,second_instrument_name)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_ce_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_ce_Price)
+    if flag=='BUY' and flag_!='BUY' and check_squareoff_timing()==False:
+        client.squareoff_all()
+        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_ce_ScripCode), Qty=first_instrument_lot, Price=0)
         
     
-    elif flag_bnf=='SELL' and flag_bnf_!='SELL' and check_squareoff_timing()==False:
-        print('SELL ',second_instrument_name)
-        squareoff_positions(client,second_instrument_name)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(Second_instrument_pe_ScripCode), Qty=second_instrument_lot, Price=Second_instrument_pe_Price)
-
-    if flag_nf=='BUY' and flag_nf_!='BUY' and check_squareoff_timing()==False:
-        print('BUY ',first_instrument_name)
-        squareoff_positions(client,first_instrument_name)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_ce_ScripCode), Qty=first_instrument_lot, Price=First_instrument_ce_Price)
-        
-    
-    elif flag_nf=='SELL' and flag_nf_!='SELL' and check_squareoff_timing()==False:
-        print('SELL ',first_instrument_name)
-        squareoff_positions(client,first_instrument_name)
-        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_pe_ScripCode), Qty=first_instrument_lot, Price=First_instrument_pe_Price)
-
+    elif flag=='SELL' and flag_!='SELL' and check_squareoff_timing()==False:
+        client.squareoff_all()
+        client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_pe_ScripCode), Qty=first_instrument_lot, Price=0)
 
 
 
@@ -301,6 +214,7 @@ def option_hedge(client):
     print('------------------------------------------')
     print('BookedPL = ',BookedPL)
     print('------------------------------------------')
+
     append_logs(str(datetime.now(pytz.timezone('Asia/Kolkata')))+' : BookedPL = '+str(BookedPL))
     
 
