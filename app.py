@@ -148,7 +148,7 @@ def option_hedge(client):
     first_instrument_name='BANKNIFTY'
     print('first_instrument_name = ',first_instrument_name)
 
-    df = client.historical_data('N', 'C', second_instrument_script, timeframe, str(from_),str(to_))
+    df = client.historical_data('N', 'C', first_instrument_script, timeframe, str(from_),str(to_))
 
     df['diff']=abs(df['Close']-df['Open'])
     df['20_EMA_diff']=calculate_ema(df['diff'])
