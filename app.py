@@ -1,135 +1,3 @@
-from py5paisa import *
-from datetime import *
-import pytz
-import time
-import numpy as np
-import pandas as pd
-import pyotp
-import json
-import os
-
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-
-
-# MongoDB connection
-mongo_uri = "mongodb+srv://knightearner:vQ8LqztvG31nkFIC@mongodb.ksex2.mongodb.net/?retryWrites=true&w=majority&appName=MongoDB"
-
-# Create a new client and connect to the server
-mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
-db = mongo_client["app_db"]  # Database name
-collection = db["switch"]  # Collection name
-
-
-def get_switch_status():
-    switch = collection.find_one({"name": "switch_status"})
-    if switch:
-        return switch["status"]
-    else:
-        return False
-
-def get_logs():
-    return [x['logs'] for x in collection.find({"name": "log"})][-20:]
-
-
-def append_logs(st):
-    collection.insert_many([{"name": "log", "logs": st}])
-
-
-
-def get_BookedPL(client):
-    BookedPL=0
-    for pos in client.positions():
-        BookedPL+=pos['BookedPL']
-        BookedPL+=pos['MTOM']
-    return BookedPL
-
-
-
-def check_market_timing():
-    if datetime.now(pytz.timezone('Asia/Kolkata')).hour == 9:
-        if datetime.now(pytz.timezone('Asia/Kolkata')).minute >=20  and get_switch_status():
-            return True
-    elif datetime.now(pytz.timezone('Asia/Kolkata')).hour > 9 and datetime.now(pytz.timezone('Asia/Kolkata')).hour < 16 and get_switch_status():
-        return True
-    return False
-
-
-def check_squareoff_timing():
-    if datetime.now(pytz.timezone('Asia/Kolkata')).hour == 15:
-        if datetime.now(pytz.timezone('Asia/Kolkata')).minute >=15:
-            return True
-    return False
-
-def squareoff_all_positions(client):
-    for pos in client.positions():
-        NetQty=pos['NetQty']
-        if NetQty>0:
-            LTP=pos['LTP']-1
-            ScripCode=int(pos['ScripCode'])
-            client.place_order(OrderType='S', Exchange='N', ExchangeType="D", ScripCode=ScripCode, Qty=NetQty, Price=LTP)
-            print('SquareOff '+pos['ScripName'])
-    # update_switch_OFF()
-
-
-def squareoff_positions(client,instrument_name):
-    
-    for pos in client.positions():
-        NetQty=pos['NetQty']
-        if NetQty>0 and instrument_name in pos['ScripName']:
-            LTP=pos['LTP']-1
-            ScripCode=int(pos['ScripCode'])
-            client.place_order(OrderType='S', Exchange='N', ExchangeType="D", ScripCode=ScripCode, Qty=NetQty, Price=LTP)
-            print('SquareOff '+pos['ScripName'])
-
-
-def closest_index(lst, K):
-    return min(range(len(lst)), key=lambda i: abs(lst[i] - K))
-
-def get_option_chain(client,asset):
-    k=client.get_expiry("N",asset)
-    print(k)
-    latest_expiry=[]
-    for i in k['Expiry']:
-        latest_expiry.append(i['ExpiryDate'][6:19])
-    # print(latest_expiry)
-            
-    k = client.get_option_chain("N", asset, latest_expiry[0])
-    k = (k['Options'])
-    df = pd.DataFrame(k)[['CPType','LastRate','StrikeRate','ScripCode']]
-    ce_df=df[df.CPType=='CE']
-    ce_df.reset_index(inplace=True,drop=True)
-    pe_df=df[df.CPType=='PE']
-    pe_df.reset_index(inplace=True,drop=True)
-
-    return [ce_df,pe_df]
-
-
-def broker_login():
-
-    totp = pyotp.TOTP(os.environ['TOTP']).now()
-    cred = {
-            "APP_NAME": os.environ['APP_NAME'],
-            "APP_SOURCE": os.environ['APP_SOURCE'],
-            "USER_ID": os.environ['USER_ID'],
-            "PASSWORD": os.environ['PASSWORD'],
-            "USER_KEY": os.environ['USER_KEY'],
-            "ENCRYPTION_KEY": os.environ['ENCRYPTION_KEY']
-        }
-
-
-    client = FivePaisaClient(cred=cred)
-
-    totp_str=str(totp)
-    print(totp_str)
-    client.get_totp_session(os.environ['client_code'],totp_str,os.environ['pin'])
-
-    return client
-
-
-def calculate_ema(prices, period=20):
-    return prices.ewm(span=period, adjust=False).mean()
-
 
 def option_hedge(client):
 
@@ -192,18 +60,22 @@ def option_hedge(client):
 
 
 
-    if check_squareoff_timing() or flag=='':
+    if check_squareoff_timing() or flag=='' or get_BookedPL(client)<-(100*15):
+        flag=''
+        print('------------------------------- No More position -------------------------------')
         client.squareoff_all()
 
     print('Signal = ',flag)
     print('Open Position Signal = ',flag_)
 
     if flag=='BUY' and flag_!='BUY' and check_squareoff_timing()==False:
+        print(flag,flag_,'BUY___________')
         client.squareoff_all()
         client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_ce_ScripCode), Qty=first_instrument_lot, Price=0)
         
     
     elif flag=='SELL' and flag_!='SELL' and check_squareoff_timing()==False:
+        print(flag,flag_,'SELL___________')
         client.squareoff_all()
         client.place_order(OrderType='B', Exchange='N', ExchangeType="D", ScripCode=int(First_instrument_pe_ScripCode), Qty=first_instrument_lot, Price=0)
 
