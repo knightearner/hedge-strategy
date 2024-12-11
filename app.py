@@ -156,7 +156,7 @@ def option_hedge(client):
     df['sig_dir']=df['sig_dir'].apply(lambda x: 1 if x>0 else 0)
 
 
-    flag='BUY'
+    flag=''
 
     if df['signal'].values.tolist()[-2]==True and df['sig_dir'].values.tolist()[-2]==1:
         flag='BUY'
