@@ -127,7 +127,6 @@ def broker_login():
     return client
 
 
-
 def calculate_ema(prices, period=20):
     return prices.ewm(span=period, adjust=False).mean()
 
@@ -159,14 +158,14 @@ def option_hedge(client):
 
     flag='BUY'
 
-    if df['signal'][-2]==True and df['sig_dir'][-2]==1:
+    if df['signal'].values.tolist()[-2]==True and df['sig_dir'].values.tolist()[-2]==1:
         flag='BUY'
-    elif df['signal'][-2]==True and df['sig_dir'][-2]==0:
+    elif df['signal'].values.tolist()[-2]==True and df['sig_dir'].values.tolist()[-2]==0:
         flag='SELL'
 
     close=df.Close.values.tolist()
 
-    print(df['signal'][-2],df['sig_dir'][-2],)
+    print(df['signal'].values.tolist()[-5:],df['sig_dir'].values.tolist()[-5:])
     
 
     first_instrument_option_chain=get_option_chain(client,first_instrument_name)
